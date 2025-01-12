@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Work Slip</title>
+    <style>
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header h1 {
+      margin: 0;
+    }
+    .header img {
+      max-height: 50px; /* Adjust the height as needed */
+    }
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+      }
+      th,
+      td {
+        border: 1px solid black;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background-color: #f2f2f2;
+      }
+      .no-border {
+        border: none;
+      }
+      .signature {
+        margin-top: 20px;
+      }
+      #signature-pad {
+        border: 1px solid #000;
+        width: 300px;
+        height: 150px;
+      }
+
+      input[type="text"],
+      input[type="number"],
+      input[type="tel"],
+      input[type="email"] {
+        height: 30px; /* Set a height to ensure the input field is large enough */
+        padding: 5px; /* Adjust padding for inner spacing */
+        font-size: 16px; /* Set a font size that makes text easy to read */
+        line-height: 20px; /* Adjust line height to center text vertically */
+      }
+
+      textarea {
+        /* Make sure the width stretches appropriately */
+        height: 150px; /* Set a fixed height or make it adjustable */
+        padding: 10px; /* Add padding for inner spacing */
+        font-size: 16px; /* Adjust font size */
+        line-height: 1.5; /* Increase line height for better readability */
+        resize: vertical; /* Allow resizing only vertically */
+      }
+      .loading {
+      display: none;
+      text-align: center;
+      margin-top: 20px;
+    }
+    .spinner {
+      border: 16px solid #f3f3f3;
+      border-top: 16px solid #3498db;
+      border-radius: 50%;
+      width: 120px;
+      height: 120px;
+      animation: spin 2s linear infinite;
+      margin: 0 auto 20px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .submit-button {
+      width: 150px;
+      height: 150px;
+      background-color: navy;
+      color: white;
+      font-size: 16px;
+      border: none;
+      border-radius: 15px;
+      cursor: pointer;
+    }
+    .submit-button:hover {
+      background-color: green;
+    }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+    <script>
+      function addRow() {
+        const tableBody = document.getElementById("items");
+        const rowCount = tableBody.rows.length + 1; // Determine the new row number
+        const newRow = document.createElement("tr");
+        newRow.innerHTML = `
+                <td><input type="text",  id="qty${rowCount}", name="qty${rowCount}", contenteditable="true", onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"></td>
+                <td><input type="text",  id="part${rowCount}", name="part${rowCount}",  contenteditable="true", onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"></td>
+                <td><input type="text",  id="sn${rowCount}", name="sn${rowCount}",  contenteditable="true", onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"></td>
+                <td><input type="text",  id="price${rowCount}", name="price${rowCount}",  contenteditable="true", onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"></td>
+                <td><input type="text",  id="amount${rowCount}", name="amount${rowCount}",  contenteditable="true", onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"></td>
+            `;
+        tableBody.appendChild(newRow);
+      }
+
+      function removeRow() {
+        const tableBody = document.getElementById("items");
+        if (tableBody.rows.length > 1) {
+          tableBody.deleteRow(-1);
+        }
+      }
+
+
+      document.addEventListener("DOMContentLoaded", function () {
+        const signaturePad = new SignaturePad(
+          document.getElementById("signature-pad"),
+          {
+            backgroundColor: "rgba(255, 255, 255, 0)",
+            penColor: "rgb(0, 0, 0)",
+          }
+        );
+
+        document.getElementById("clear").addEventListener("click", function () {
+          signaturePad.clear();
+        });
+
+        document
+          .querySelector("form")
+          ?.addEventListener("submit", function (event) {
+            const signature = signaturePad.toDataURL();
+            document.getElementById("signature").value = signature;
+          });
+      });
+
+      async function convertHtmlToPdf2(htmlElementId) {
+        const { jsPDF } = window.jspdf; // Import jsPDF
+        const element = document.getElementById(htmlElementId); // Get the HTML element by ID
+
+        if (!element) {
+          alert("Element not found");
+          return null;
+        }
+
+        try {
+          // Configure html2canvas to render the entire element
+          const canvas = await html2canvas(element, {
+            scrollY: 0,
+            useCORS: true,
+          });
+
+          // Get the image data
+          //const imgData = canvas.toDataURL("image/png");
+          const imgData = canvas.toDataURL("image/jpeg", 0.8);
+
+          // Define the PDF dimensions
+          const elementWidth = canvas.width;
+          const elementHeight = canvas.height;
+
+          // Create PDF and add the image
+          const pdf = new jsPDF("p", "px", [elementWidth, elementHeight]);
+          pdf.addImage(imgData, "PNG", 0, 0, elementWidth, elementHeight);
+
+          // Generate the PDF as a Blob
+          const pdfBlob = pdf.output("blob");
+
+          return pdfBlob;
+        } catch (error) {
+          console.error("Error generating PDF:", error);
+          return null;
+        }
+      }
+
+      async function convertHtmlToPdf3(htmlElementId) {
+        const { jsPDF } = window.jspdf; // Import jsPDF
+        const element = document.getElementById(htmlElementId); // Get the HTML element by ID
+
+        if (!element) {
+          alert("Element not found");
+          return null;
+        }
+
+        try {
+          // Create a new jsPDF instance
+          const pdf = new jsPDF();
+
+          // Use the html method to render the element's content as text into the PDF
+          await pdf.html(element, {
+            callback: (doc) => {
+              // This callback is triggered after rendering is complete
+              const pdfBlob = doc.output("blob");
+              console.log("PDF generated successfully");
+              return pdfBlob;
+            },
+            x: 10, // Optional: X offset for the content
+            y: 10, // Optional: Y offset for the content
+            width: 190, // Optional: Width of the content in the PDF
+          });
+        } catch (error) {
+          console.error("Error generating PDF:", error);
+          return null;
+        }
+      }
+
+      async function handleSubmitForm() {
+        
+
+        // Show loading spinner
+        document.getElementById('loading').style.display = 'flex';
+
+        const now = new Date();
+
+        // Format the date and time as YYYY-MM-DD_HH-MM-SS
+        const date = now.toISOString().split("T")[0]; // Extract YYYY-MM-DD
+        const time = now.toTimeString().split(" ")[0].replace(/:/g, "-"); // Extract HH-MM-SS and replace ":" with "-"
+        // Get the input element by its ID
+        const busNameInput = document.getElementById("busName");
+
+        // Get the value of the input element
+        const busNameValue = busNameInput.value;
+        const fileName = `WorkSlip_${busNameValue}_${date}_${time}.pdf`;
+        // 1. Generate the PDF first
+        const pdfBlob = await convertHtmlToPdf2("content"); // Use the actual ID of the element
+
+        if (!pdfBlob) {
+          alert("Error generating PDF.");
+          document.getElementById('loading').style.display = 'none';
+          return;
+        }
+
+        // 2. Get form data (you can collect the form data dynamically as you already do)
+        const formData = new FormData(document.querySelector("form")); // Assuming you're using a <form> element
+
+        // 3. Append the PDF blob to form data
+
+        formData.append("pdf", pdfBlob, fileName);
+
+        // 4. Send the form data with PDF to the server using fetch or any AJAX method
+        try {
+          const response = await fetch("/submit", {
+            method: "POST",
+            body: formData, // FormData includes both PDF and form fields
+          });
+
+          const result = await response.json();
+          if (result.status === "success") {
+            alert(result.message); // Show success alert
+                    // Hide loading spinner
+        document.getElementById('loading').style.display = 'none';
+        // Redirect back to index.html
+        window.location.href = "/";
+            location.reload(); // Reload the page after the alert
+          } else {
+                    // Hide loading spinner
+        document.getElementById('loading').style.display = 'none';
+        // Redirect back to index.html
+
+            alert(result.message); // Show error alert
+          }
+          console.log(result); // Handle the server's response
+        } catch (error) {
+          console.error("Error submitting form:", error);
+        }
+      }
+    // Prevent Enter key from submitting the form
+    document.addEventListener('DOMContentLoaded', (event) => {
+      const inputs = document.querySelectorAll('input');
+      inputs.forEach(input => {
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+          }
+        });
+      });
+    });
+    </script>
+  </head>
+  <body id="content">
+    <div class="header">
+    <h1>Digital Market POS</h1>
+    <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" />
+</div>
+    <!--<form action="/submit" method="POST">-->
+    <form id="myForm" onsubmit="event.preventDefault(); handleSubmitForm();">
+      <p>
+        421 S. Frontage Rd Ste 42, Burr Ridge, IL 60527<br />
+        (888) 441-4116<br />
+        <a href="http://www.digitalmarketpos.com">www.digitalmarketpos.com</a>
+      </p>
+
+      <table>
+        <tr>
+          <td>Invoice Reference No.</td>
+          <td>
+            <input
+              type="text"
+              id="refNumber"
+              ,
+              name="refNumber"
+              ,
+              contenteditable="true"
+              ,
+              onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"
+            />
+          </td>
+        </tr>
+        <tr>
+          <td>Date</td>
+          <td contenteditable="true">
+            <button
+              type="button"
+              ,
+              onclick="document.querySelector('#dateField').value = new Date().toLocaleDateString();"
+            >
+              Set Current Date
+            </button>
+            <input type="text" id="dateField" , name="dateField" />
+          </td>
+        </tr>
+        <tr>
+          <td>Name</td>
+          <td>
+            <input
+              type="text"
+              id="busName"
+              ,
+              name="busName"
+              ,
+              contenteditable="true"
+              ,
+              onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"
+            />
+          </td>
+        </tr>
+        <tr>
+          <td>Phone</td>
+          <td>
+            <input
+              type="text"
+              id="busPhone"
+              ,
+              name="busPhone"
+              ,
+              contenteditable="true"
+              ,
+              onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"
+            />
+          </td>
+        </tr>
+        <tr>
+          <td>Address</td>
+          <td>
+            <input
+              type="text"
+              id="busAddr"
+              ,
+              name="busAddr"
+              ,
+              contenteditable="true"
+              ,
+              onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"
+            />
+          </td>
+        </tr>
+        <td>Email</td>
+        <td>
+          <input
+            type="text"
+            id="busEmail"
+            ,
+            name="busEmail"
+            ,
+            contenteditable="true"
+            ,
+            onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"
+          />
+        </td>
+      </tr>
+      </table>
+
+      <table>
+        <tr>
+          <td>Nature of Service Requested</td>
+          <td>
+            <textarea
+              type="text"
+              id="serviceNature"
+              ,
+              name="serviceNature"
+              ,
+              contenteditable="true"
+              ,
+              onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"
+            ></textarea>
+          </td>
+        </tr>
+        <tr>
+          <td>Technical Service Performed</td>
+          <td>
+            <textarea
+              type="text"
+              id="servicePerformed"
+              ,
+              name="servicePerformed"
+              ,
+              contenteditable="true"
+              ,
+              onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"
+            ></textarea>
+          </td>
+        </tr>
+        <tr>
+          <td>Performed by:</td>
+          <td>
+            <input
+              type="text"
+              id="performedBy"
+              ,
+              name="performedBy"
+              ,
+              onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"
+            />
+          </td>
+        </tr>
+        <tr>
+            <td>Tech Email:</td>
+            <td>
+              <input
+                type="text"
+                id="techEmail"
+                ,
+                name="techEmail"
+                ,
+                onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"
+              />
+            </td>
+          </tr> 
+      </table>
+
+      <table>
+        <tr>
+          <td>Payment Term:</td>
+          <td>
+            <label><input id="COD" , name="COD" , type="checkbox" /> COD</label>
+            <label
+              ><input id="NCC" , name="NCC" , type="checkbox" /> NC
+              Contract</label
+            >
+            <label
+              ><input id="invoiced" , name="invoiced" , type="checkbox" />
+              Invoiced</label
+            >
+          </td>
+        </tr>
+      </table>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Qty.</th>
+            <th>Part No./Description</th>
+            <th>SN</th>
+            <th>Price</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody id="items">
+          <tr>
+            <td>
+              <input
+                type="text"
+                id="qty1"
+                ,
+                name="qty1"
+                ,
+                onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"
+              />
+            </td>
+            <td>
+              <input
+                type="text"
+                id="part1"
+                ,
+                name="part1"
+                ,
+                contenteditable="true"
+                ,
+                onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"
+              />
+            </td>
+            <td>
+              <input
+                type="text"
+                id="sn1"
+                ,
+                name="sn1"
+                ,
+                contenteditable="true"
+                ,
+                onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"
+              />
+            </td>
+            <td>
+              <input
+                type="text"
+                id="price1"
+                ,
+                name="price1"
+                ,
+                contenteditable="true"
+                ,
+                onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"
+              />
+            </td>
+            <td>
+              <input
+                type="text"
+                id="amount1"
+                ,
+                name="amount1"
+                ,
+                contenteditable="true"
+                ,
+                onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"
+              />
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="add-remove-buttons">
+        <button type="button" , onclick="addRow()">Add Row</button>
+        <button type="button" , onclick="removeRow()">Remove Row</button>
+      </div>
+
+      <table>
+        <tr>
+          <td>Paid by:</td>
+          <td>
+            <label
+              ><input id="cashPay" , name="cashPay" , type="checkbox" />
+              Cash</label
+            >
+          </td>
+          <td>
+            <label
+              ><input id="chargePay" , name="chargePay" , type="checkbox" />
+              Charge</label
+            >
+          </td>
+          <td>
+            <label
+              ><input id="checkPay" , name="checkPay" , type="checkbox" />
+              Check</label
+            >
+          </td>
+          <td><input id="checkNum" , name="checkNum" , contenteditable="true"/></td>
+        </tr>
+      </table>
+
+      <table>
+        <tr>
+          <td>Parts</td>
+          <td>
+            <input
+              type="text"
+              id="partsCost"
+              ,
+              name="partsCost"
+              ,
+              contenteditable="true"
+              ,
+              onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"
+            />
+          </td>
+        </tr>
+        <tr>
+          <td>Labor/Travel</td>
+          <td>
+            <input
+              type="text"
+              id="laborCost"
+              ,
+              name="laborCost"
+              ,
+              contenteditable="true"
+              ,
+              onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"
+            />
+          </td>
+        </tr>
+        <tr>
+          <td>Subtotal</td>
+          <td>
+            <input
+              type="text"
+              id="subtotal"
+              ,
+              name="subtotal"
+              ,
+              contenteditable="true"
+              ,
+              onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"
+            />
+          </td>
+        </tr>
+        <tr>
+          <td>Tax</td>
+          <td>
+            <input
+              type="text"
+              id="tax"
+              ,
+              name="tax"
+              ,
+              contenteditable="true"
+              ,
+              onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"
+            />
+          </td>
+        </tr>
+        <tr>
+          <td>Total</td>
+          <td>
+            <input
+              type="text"
+              id="total"
+              ,
+              name="total"
+              ,
+              contenteditable="true"
+              ,
+              onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"
+            />
+          </td>
+        </tr>
+      </table>
+
+      <div class="signature">
+        <table>
+          <tr>
+            <td>Authorized Person Printed Name</td>
+            <td>
+              <input
+                type="text"
+                id="authorizedName"
+                ,
+                name="authorizedName"
+                contenteditable="true"
+                ,
+                onkeypress="this.style.width = ((this.value.length + 1) * 10) + 'px';"
+              />
+            </td>
+          </tr>
+        </table>
+        <!-- Loading spinner -->
+    <div id="loading" class="loading">
+        <div>Processing Work Slip</div>
+        <div class="spinner"></div>
+    </div>
+
+        <label for="signature">Authorized Person Signature:</label>
+        <br /><br />
+        <canvas id="signature-pad"></canvas>
+        <br /><br />
+
+        <button type="button" id="clear">Clear Signature</button>
+        <input type="hidden" name="signature" id="signature" required />
+
+        <br /><br />
+        <input type="submit" value="Submit" class="submit-button"/>
+
+        <p>
+          Signature above constitutes acceptance of above work as being
+          satisfactory, and the equipment has been left in good condition.
+        </p>
+      </div>
+    </form>
+  </body>
+</html>
